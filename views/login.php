@@ -13,6 +13,7 @@
         <div class="row justify-content-center w-100">
             <div class="col-md-6 col-lg-5">
                 <div class="card shadow-sm">
+
                     <div class="card-body p-4" id="register-section" style="display: none;">
                         <form id="register-form">
                             <h3 class="card-title text-center mb-4">สร้างบัญชีใหม่</h3>
@@ -116,10 +117,12 @@
             });
             $('#login-form').on('submit', function(e) {
                 e.preventDefault();
+                let formLog = $(this).serialize();
+                formLog += '&action=login';
                 $.ajax({
                     type: 'POST',
-                    url: '../controls/check_register.php' + '&action=login',
-                    data: $(this).serialize(),
+                    url: '../controls/check_register.php',
+                    data: formLog,
                     dataType: 'json',
                     success: function(response) {
                         if (response.success) {

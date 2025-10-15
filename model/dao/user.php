@@ -35,6 +35,13 @@ class User
         $stmt = $this->conn->prepare($sql);
         try {
             $stmt->execute([$username, $email, $role, $hashPassword]);
+            $lastId = $this->conn->lastInsertId();
+            $prefix = 'lct-';
+            $pad_id = str_pad($lastId, 6, '0', STR_PAD_LEFT);
+            $format_id = $prefix . $pad_id;
+            $sql = "UPDATE  users SET location_id = ? ";
+            $stmt = $this->conn->prepare($sql);
+            $stmt->execute([$format_id]);
             return true;
         } catch (PDOException $e) {
             return $e->getMessage();

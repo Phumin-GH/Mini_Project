@@ -45,7 +45,7 @@ $locations_json = json_encode($houses);
             <h1>💎 Pattaya Local Gems</h1>
             <p class="lead mb-0">ค้นพบเสน่ห์ของธุรกิจท้องถิ่นที่ซ่อนอยู่ในพัทยา</p>
         </div>
-
+        <button class="btn btn-secondary position-absolute top-0 end-0 m-3" id="login-btn">เข้าสู่ระบบ</button>
     </header>
 
     <main class="container mt-4">
@@ -166,12 +166,13 @@ $locations_json = json_encode($houses);
                 const lat = house.Property_latitude;
                 const lng = house.Property_longitude;
                 const name = house.Property_name;
-
-                // สร้างหมุดและเพิ่มลงในแผนที่
                 L.marker([lat, lng])
                     .addTo(map)
-                    .bindPopup(name); // เพิ่ม Popup แสดงชื่อบ้าน
+                    .bindPopup(name);
 
+            });
+            $('#login-btn').on('click', function() {
+                window.location.href = 'views/login.php';
             });
         });
     </script>
