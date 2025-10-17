@@ -8,7 +8,7 @@ class Location
     }
     public function getLocations()
     {
-        $sql = "SELECT l.lat,l.lng,l.location_name,l.category,l.location_description,u.email,i.img_name FROM locations l
+        $sql = "SELECT l.lat,l.lng,l.location_name,l.category,l.location_description,l.location_id,l.id,u.email,u.username,u.user_role,i.img_name FROM locations l
         INNER JOIN users u ON l.user_id = u.user_id
         LEFT JOIN images_lct i ON l.id = i.lct_id";
         $stmt = $this->conn->prepare($sql);
@@ -17,10 +17,11 @@ class Location
     }
     public function getLocationById($id)
     {
-        $sql = "SELECT * FROM locations WHERE id = ?";
+        $sql = "SELECT lat,lng,location_name,category,location_description,location_id,id FROM locations WHERE location_id = ? LIMIT 1";
         $stmt = $this->conn->prepare($sql);
         $stmt->execute([$id]);
-        return $stmt->fetch(PDO::FETCH_ASSOC);
+        $result =  $stmt->fetch(PDO::FETCH_ASSOC);
+        return $result;
     }
     public function createLocation($name, $lat, $lng, $dst, $email, $category)
     {
@@ -43,10 +44,36 @@ class Location
             return $e->getMessage();
         }
     }
+
     private function upload_images($lastId)
     {
+        $check_img = "SELECT COUNT(*) FROM images_lct WHERE lct_id = ?";
+        $stmt = $this->conn->prepare($check_img);
+        $stmt->execute([$lastId]);
+        $result = $stmt->fetchColumn();
+        if (isset($_FILES['EditlocationImages'])) {
+            if ($result > 0) {
+                $del_img = "DELETE FROM images_lct WHERE lct_id = ?";
+                $stmt = $this->conn->prepare($del_img);
+                $stmt->execute([$lastId]);
+            }
+            $uploadDir = __DIR__ . "/../../images/";
+            if (!is_dir($uploadDir)) {
+                mkdir($uploadDir, 0777, true);
+            }
+            foreach ($_FILES['EditlocationImages']['tmp_name'] as $key => $tmpname) {
+                $fileName = $_FILES['EditlocationImages']['name'][$key];
+                $uniqueName = uniqid('img_') . "_" . basename($fileName);
+                $targetPath = $uploadDir . $uniqueName;
+                if (move_uploaded_file($tmpname, $targetPath)) {
+                    $stmt = $this->conn->prepare("INSERT INTO images_lct (lct_id,img_name) VALUES (?,?)");
+                    $stmt->execute([$lastId, "images/" . $uniqueName]);
+                }
+            }
+            return true;
+        }
         if (isset($_FILES['locationImages'])) {
-            $uploadDir = __DIR__ . "/../images/";
+            $uploadDir = __DIR__ . "/../../images/";
             if (!is_dir($uploadDir)) {
                 mkdir($uploadDir, 0777, true);
             }
@@ -64,7 +91,6 @@ class Location
     }
     private function prefix_location_id($lastId)
     {
-
         $prefix = 'lct_';
         $pad_id = str_pad($lastId, 6, '0', STR_PAD_LEFT);
         $format = $prefix . $pad_id;
@@ -86,23 +112,51 @@ class Location
         $user_id = $stmt->fetchColumn();
         return $user_id;
     }
-    public function updateLocation($id, $name, $description, $image)
+    public function updateLocation($location_id, $name, $lat, $lng, $dst,  $category)
     {
-        $sql = "UPDATE locations SET name = ?, description = ?, image = ? WHERE id = ?";
+        $get_lct_id = "SELECT id FROM locations WHERE location_id = ?";
+        $stmt = $this->conn->prepare($get_lct_id);
+        $stmt->execute([$location_id]);
+        $lct_id = $stmt->fetchColumn();
+        $this->upload_images($lct_id);
+        $sql = "UPDATE locations SET location_name = ?, location_description = ?, lat = ?,lng = ?,category=? WHERE location_id = ?";
         $stmt = $this->conn->prepare($sql);
-        $stmt->execute([$name, $description, $image, $id]);
-        return $stmt->fetch(PDO::FETCH_ASSOC);
+        try {
+            $stmt->execute([$name, $dst, $lat, $lng, $category, $location_id]);
+            return true;
+        } catch (PDOException $e) {
+            return $e->getMessage();
+        }
     }
-    // public function searchLocation($searchTerm,$category){
-    //     switch($searchTerm)
-    //      case
-
-    // }
+    public function searchLocation($searchTerm, $category)
+    {
+        $search = "SELECT l.lat,l.lng,l.location_name,l.category,l.location_description,l.location_id,l.id,u.email,u.username,u.user_role,i.img_name FROM locations l
+        INNER JOIN users u ON l.user_id = u.user_id
+        LEFT JOIN images_lct i ON l.id = i.lct_id";
+        $params = [];
+        $search .= " WHERE category LIKE ? AND location_name LIKE ?";
+        $likeCate = "%" . $category . "%";
+        $likeLct = "%" . $searchTerm . "%";
+        $params[] = $likeCate;
+        $params[] = $likeLct;
+        $stmt = $this->conn->prepare($search);
+        try {
+            $stmt->execute($params);
+            $locations = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            return $locations;
+        } catch (PDOException $e) {
+            return $e->getMessage();
+        }
+    }
     public function deleteLocation($id)
     {
-        $sql = "DELETE FROM locations WHERE id = ?";
+        $sql = "DELETE FROM locations WHERE location_id = ?";
         $stmt = $this->conn->prepare($sql);
-        $stmt->execute([$id]);
-        return $stmt->fetch(PDO::FETCH_ASSOC);
+        try {
+            $stmt->execute([$id]);
+        } catch (PDOException $e) {
+            return $e->getMessage();
+        }
+        return true;
     }
 }
